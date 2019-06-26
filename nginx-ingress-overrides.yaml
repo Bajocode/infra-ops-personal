@@ -1,0 +1,6 @@
+controller:
+  name: controller
+  image:
+    pullPolicy: Always
+rbac:
+  create: true
