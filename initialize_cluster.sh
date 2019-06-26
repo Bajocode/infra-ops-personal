@@ -29,6 +29,11 @@ function install_certmanager() {
   kubectl apply -f ./production-cluster-issuer.yaml
 }
 
+function install_tektoncd() {
+  kubectl apply -f https://storage.googleapis.com/tekton-releases/latest/release.yaml
+}
+
 install_tiller
 install_ingress
 install_certmanager
+install_tektoncd
