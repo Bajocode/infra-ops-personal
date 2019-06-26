@@ -31,6 +31,12 @@ function install_certmanager() {
 
 function install_tektoncd() {
   kubectl apply -f https://storage.googleapis.com/tekton-releases/latest/release.yaml
+  kubectl apply -f ./tektoncd/docker-gcr-secret.yaml
+  kubectl apply -f ./tektoncd/docker-sa.yaml
+  helm upgrade \
+    --install moby-buildkit \
+    --namespace tekton-pipelines \
+    ./moby-buildkit
 }
 
 install_tiller

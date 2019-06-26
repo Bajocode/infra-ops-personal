@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: docker-sa
+  namespace: tekton-pipelines
+secrets:
+  - name: docker-gcr-secret
