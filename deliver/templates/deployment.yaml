@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "deliver.fullname" . }}
+  labels:
+{{ include "deliver.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "deliver.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "deliver.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: git-sync
+        image: "{{ .Values.gitSync.image.repository }}:{{ .Values.gitSync.image.tag }}"
+        args:
+        - "-ssh={{ .Values.gitSync.sshEnabled }}"
+        - "-repo={{ .Values.gitSync.repo }}"
+        - "-dest=git-sync"
+        - "-branch=master"
+        - "-depth=1"
+        imagePullPolicy: {{ .Values.gitSync.image.pullPolicy }}
+        securityContext:
+          runAsUser: 65533
+        volumeMounts:
+        - name: shared
+          mountPath: /tmp/git
+        - name: git-secret
+          mountPath: /etc/git-secret
+      - name: cicd
+        image: "{{ .Values.cicd.image.repository }}:{{ .Values.cicd.image.tag }}"
+        imagePullPolicy: {{ .Values.cicd.image.pullPolicy }}
+        env:
+        - name: TEKTON_PIPELINE_PATH
+          value: {{ .Values.cicd.tekton.pipelinePath }}
+        - name: TEKTON_PIPELINERUN_PATH
+          value: {{ .Values.cicd.tekton.pipelineRunPath }}
+        command:
+        - /bin/sh
+        - -ec
+        - |
+          alias k="kubectl --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) --server=https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+          sleep 5
+          while :
+          do
+            CURRENT=$(basename -- /shared/rev*) && sleep 5 && NEW=$(basename -- /shared/rev*)
+            if [ $CURRENT != $NEW ]; then
+              echo "New delivery"
+              k apply -f /shared/git-sync/${TEKTON_PIPELINE_PATH}
+              k delete -f /shared/git-sync/${TEKTON_PIPELINERUN_PATH} --grace-period=0 --force > /dev/null 2>&1 || true
+              k apply -f /shared/git-sync/${TEKTON_PIPELINERUN_PATH}
+              CURRENT=$NEW
+            fi
+          done
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      volumes:
+      - name: shared
+        emptyDir: {}
+      - name: git-secret
+        secret:
+          secretName: git-secret
+          defaultMode: 288

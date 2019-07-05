@@ -1,0 +1,18 @@
+replicaCount: 1
+
+gitSync:
+  image:
+    repository: k8s.gcr.io/git-sync 
+    tag: v3.1.1
+    pullPolicy: Always
+  sshEnabled: false
+  repo:
+
+cicd:
+  image:
+    repository: lachlanevenson/k8s-kubectl
+    tag: v1.13.4
+    pullPolicy: Always
+  tekton:
+    pipelinePath:
+    pipelineRunPath:
