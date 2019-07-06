@@ -28,4 +28,5 @@ cicd:
     pullPolicy: Always
   chart:
     name: fabijanbajo
+    namespace: fabijanbajo
     dir: kubernetes

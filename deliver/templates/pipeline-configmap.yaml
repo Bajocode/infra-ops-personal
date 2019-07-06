@@ -46,6 +46,7 @@ data:
             - --install
             - {{ .Values.cicd.chart.name }}
             - "/makisu-context/{{ .Values.cicd.chart.dir }}/{{ .Values.cicd.chart.name }}"
+            - "--namespace={{ .Values.cicd.chart.namespace }}"
             volumeMounts:
             - name: context
               mountPath: /makisu-context
