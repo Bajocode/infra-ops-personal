@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-pipelinejob-configmap
+data:
+  pipeline-job.yaml: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: pipeline-job
+      namespace: tekton-pipelines
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          initContainers:
+          - name: provision
+            image: alpine/git
+            args:
+            - clone
+            - {{ .Values.gitSync.git.repository }}
+            - /makisu-context
+            volumeMounts:
+            - name: context
+              mountPath: /makisu-context
+          - name: build
+            image: "{{ .Values.makisuBuild.image.repository }}:{{ .Values.makisuBuild.image.tag }}"
+            imagePullPolicy: {{ .Values.makisuBuild.image.pullPolicy }}
+            args:
+            - build
+            - "--push={{ .Values.makisuBuild.registry.host }}"
+            - --modifyfs=true
+            - "-t={{ .Values.makisuBuild.registry.repository }}:{{ .Values.makisuBuild.registry.tag }}"
+            - --registry-config=/registry-config/registry.yaml
+            - /makisu-context
+            volumeMounts:
+            - name: context
+              mountPath: /makisu-context
+            - name: registry-config
+              mountPath: /registry-config
+          - name: deploy
+            image: lachlanevenson/k8s-helm:v2.14.1
+            command: ["helm"]
+            args:
+            - upgrade
+            - --install
+            - {{ .Values.cicd.chart.name }}
+            - "/makisu-context/{{ .Values.cicd.chart.dir }}/{{ .Values.cicd.chart.name }}"
+            volumeMounts:
+            - name: context
+              mountPath: /makisu-context
+          containers:
+          - name: complete
+            image: busybox
+            command: ["sh", "-c", "echo completed"]
+          volumes:
+          - name: context
+            emptyDir: {}
+          - name: registry-config
+            secret:
+              secretName: {{ .Values.makisuBuild.registry.secret }}

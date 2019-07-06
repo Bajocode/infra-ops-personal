@@ -5,14 +5,27 @@ gitSync:
     repository: k8s.gcr.io/git-sync 
     tag: v3.1.1
     pullPolicy: Always
-  sshEnabled: false
-  repo:
+  git:
+    sshEnabled: false
+    repository: https://github.com/Bajocode/fabijanbajo.com.git
+    branch: master
+
+makisuBuild:
+  image:
+    repository: gcr.io/makisu-project/makisu 
+    tag: v0.1.11
+    pullPolicy: IfNotPresent
+  registry:
+    host: gcr.io
+    repository: fabijanbajo/fabijanbajo
+    tag: latest
+    secret: docker-registry-config
 
 cicd:
   image:
     repository: lachlanevenson/k8s-kubectl
     tag: v1.13.4
     pullPolicy: Always
-  tekton:
-    pipelinePath:
-    pipelineRunPath:
+  chart:
+    name: fabijanbajo
+    dir: kubernetes

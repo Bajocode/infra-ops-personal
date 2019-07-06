@@ -20,10 +20,10 @@ spec:
       - name: git-sync
         image: "{{ .Values.gitSync.image.repository }}:{{ .Values.gitSync.image.tag }}"
         args:
-        - "-ssh={{ .Values.gitSync.sshEnabled }}"
-        - "-repo={{ .Values.gitSync.repo }}"
+        - "-ssh={{ .Values.gitSync.git.sshEnabled }}"
+        - "-repo={{ .Values.gitSync.git.repository }}"
         - "-dest=git-sync"
-        - "-branch=master"
+        - "-branch={{ .Values.gitSync.git.branch }}"
         - "-depth=1"
         imagePullPolicy: {{ .Values.gitSync.image.pullPolicy }}
         securityContext:
@@ -36,11 +36,6 @@ spec:
       - name: cicd
         image: "{{ .Values.cicd.image.repository }}:{{ .Values.cicd.image.tag }}"
         imagePullPolicy: {{ .Values.cicd.image.pullPolicy }}
-        env:
-        - name: TEKTON_PIPELINE_PATH
-          value: {{ .Values.cicd.tekton.pipelinePath }}
-        - name: TEKTON_PIPELINERUN_PATH
-          value: {{ .Values.cicd.tekton.pipelineRunPath }}
         command:
         - /bin/sh
         - -ec
@@ -52,18 +47,23 @@ spec:
             CURRENT=$(basename -- /shared/rev*) && sleep 5 && NEW=$(basename -- /shared/rev*)
             if [ $CURRENT != $NEW ]; then
               echo "New delivery"
-              k apply -f /shared/git-sync/${TEKTON_PIPELINE_PATH}
-              k delete -f /shared/git-sync/${TEKTON_PIPELINERUN_PATH} --grace-period=0 --force > /dev/null 2>&1 || true
-              k apply -f /shared/git-sync/${TEKTON_PIPELINERUN_PATH}
+              k delete -f /shared/pipeline-job.yaml --grace-period=0 --force > /dev/null 2>&1 || true
+              k apply -f /shared/pipeline-job.yaml
               CURRENT=$NEW
             fi
           done
         volumeMounts:
         - name: shared
           mountPath: /shared
+        - name: pipelinejob-configmap
+          mountPath: /shared/pipeline-job.yaml
+          subPath: pipeline-job.yaml
       volumes:
       - name: shared
         emptyDir: {}
+      - name: pipelinejob-configmap
+        configMap:
+          name: {{ .Release.Name }}-pipelinejob-configmap 
       - name: git-secret
         secret:
           secretName: git-secret

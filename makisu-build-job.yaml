@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: makisu-build-job
+  namespace: tekton-pipelines
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: provision
+        image: alpine/git
+        args:
+        - clone
+        - https://github.com/Bajocode/fabijanbajo.com.git
+        - /makisu-context
+        volumeMounts:
+        - name: context
+          mountPath: /makisu-context
+      - name: build
+        image: gcr.io/makisu-project/makisu:v0.1.11
+        imagePullPolicy: IfNotPresent
+        args:
+        - build
+        - --push=gcr.io
+        - --modifyfs=true
+        - -t=fabijanbajo/fabijanbajo:latest
+        - --registry-config=/registry-config/registry.yaml
+        - /makisu-context
+        volumeMounts:
+        - name: context
+          mountPath: /makisu-context
+        - name: registry-config
+          mountPath: /registry-config
+      - name: deploy
+        image: lachlanevenson/k8s-helm:v2.14.1
+        command: ["helm"]
+        args:
+        - upgrade
+        - --install
+        - fabijanbajo
+        - /makisu-context/kubernetes/fabijanbajo
+        volumeMounts:
+        - name: context
+          mountPath: /makisu-context
+      containers:
+      - name: complete
+        image: busybox
+        command: ["sh", "-c", "echo completed"]
+      volumes:
+      - name: context
+        emptyDir: {}
+      - name: registry-config
+        secret:
+          secretName: docker-registry-config
