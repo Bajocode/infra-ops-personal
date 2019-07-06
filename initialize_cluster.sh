@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CI_NAMESPACE=tekton-pipelines
+OPS_NAMESPACE=ops
 
 function install_tiller() {
   kubectl apply -f ./tiller-rbac.yaml
@@ -47,28 +47,33 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: $CI_NAMESPACE
+  namespace: tekton-pipelines
 EOF
-
-  local token_value=$(kubectl -n $CI_NAMESPACE get secret $(kubectl -n $CI_NAMESPACE get secret | grep ci-sa | awk '{print $1}') -o json | jq -r '.data.token'  | base64 -D)
-  local ca_value=kubectl config view --raw -o json | jq -r '.clusters[0].cluster."certificate-authority-data"' | tr -d '"' | base64 -D
-
-  kubectl create secret generic ci-cluster-secret \
-    --from-literal tokenKey=$token_value \
-    --from-literal caKey=$ca_value \
-    -n $CI_NAMESPACE --dry-run -o yaml | kubectl apply -f -
 }
 
-function create_ssh_secret() {
-  kubectl create secret generic git-secret \
-    -n kube-system \
-    --from-file=ssh=$HOME/.ssh/id_rsa \
-    --from-file=known_hosts=$HOME/.ssh/known_hosts \
+function install_ops() {
+  kubectl create namespace $OPS_NAMESPACE \
     --dry-run -o yaml | kubectl apply -f -
+
+kubectl apply -f - <<EOF
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: ops-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: $OPS_NAMESPACE
+EOF
 }
 
 install_tiller
 install_ingress
 install_certmanager
 install_tektoncd
-create_ssh_secret
+install_ops

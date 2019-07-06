@@ -1,0 +1,17 @@
+gitSync:
+  git:
+    sshEnabled: false
+    repository: https://github.com/Bajocode/fabijanbajo.com.git
+    branch: master
+
+makisuBuild:
+  registry:
+    host: gcr.io
+    repository: fabijanbajo/fabijanbajo
+    tag: latest
+
+cicd:
+  chart:
+    name: fabijanbajo
+    namespace: fabijanbajo
+    dir: kubernetes
