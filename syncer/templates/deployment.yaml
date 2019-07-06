@@ -31,8 +31,10 @@ spec:
         volumeMounts:
         - name: shared
           mountPath: /tmp/git
+        {{- if .Values.gitSync.sshEnabled -}}
         - name: git-secret
           mountPath: /etc/git-secret
+        {{- end }}
       - name: cicd
         image: "{{ .Values.cicd.image.repository }}:{{ .Values.cicd.image.tag }}"
         imagePullPolicy: {{ .Values.cicd.image.pullPolicy }}
@@ -64,7 +66,9 @@ spec:
       - name: pipelinejob-configmap
         configMap:
           name: {{ .Release.Name }}-pipelinejob-configmap 
+      {{- if .Values.gitSync.sshEnabled -}}
       - name: git-secret
         secret:
           secretName: git-secret
           defaultMode: 288
+      {{- end }}
