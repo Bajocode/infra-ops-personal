@@ -31,27 +31,7 @@ function install_certmanager() {
   kubectl apply -f ./production-cluster-issuer.yaml
 }
 
-function install_tektoncd() {
-  kubectl apply -f https://storage.googleapis.com/tekton-releases/latest/release.yaml
-
-kubectl apply -f - <<EOF
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: tekton-clusterrolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: tekton-pipelines
-EOF
-}
-
-function install_ops() {
+function install_ops_account() {
   kubectl create namespace $OPS_NAMESPACE \
     --dry-run -o yaml | kubectl apply -f -
 
@@ -75,5 +55,4 @@ EOF
 install_tiller
 install_ingress
 install_certmanager
-install_tektoncd
-install_ops
+install_ops_account
