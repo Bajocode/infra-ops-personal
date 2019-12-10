@@ -7,15 +7,15 @@ PROJECT_NAME=fabijanbajo
 CLUSTER_NAME=fabijanbajo
 REGION=us-central1
 ZONE=${REGION}-a
-MACHINE_TYPE=g1-small
+MACHINE_TYPE=n1-standard-1
 NODE_COUNT="2"
 
-gcloud container clusters create "fabijanbajo" \
+gcloud container clusters create $CLUSTER_NAME \
   --project $PROJECT_NAME \
   --zone $ZONE \
   --no-enable-basic-auth \
   --cluster-version "1.13.6-gke.13" \
-  --machine-type "g1-small" \
+  --machine-type $MACHINE_TYPE \
   --image-type "COS" \
   --disk-type "pd-standard" \
   --disk-size "10" \
