@@ -56,8 +56,6 @@ function install_metallb() {
 }
 
 function configure_hcloud_floatingip_failover() {
-  kubectl -n $ops_namespace delete daemonset fip-controller 2>/dev/null
-
 kubectl apply -f - << EOF
 ---
 apiVersion: v1
