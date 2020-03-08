@@ -4,14 +4,27 @@ if [ -z "$1" ]; then echo "\nprovide hcloud api token"; fi
 if [ -z "$2" ]; then echo "\nprovide hcloud floating ip"; fi
 
 hcloud_api_token=$1
-hcloud_floating_ip=$1
+hcloud_floating_ip=$2
 ops_namespace=ops
+gcloud_secret_dir="$HOME/Dropbox/dev/gcloud/633301885736-compute@developer.gserviceaccount.com-key.json"
 
 function install_base() {
   kubectl create namespace $ops_namespace \
     --dry-run -o yaml | kubectl apply -f -
   helm repo add stable https://kubernetes-charts.storage.googleapis.com
   helm repo update
+}
+
+function install_imageregistry_secret() {
+  kubectl create secret docker-registry gcr-secret \
+  --namespace=default \
+  --docker-server=gcr.io \
+  --docker-username=_json_key \
+  --docker-password="$(cat $gcloud_secret_dir)" \
+  --docker-email=bajo09@gmail.com \
+  --dry-run -o yaml | kubectl apply -f -
+
+  kubectl patch serviceaccounts default -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
 }
 
 function install_ingress() {
@@ -43,6 +56,8 @@ function install_metallb() {
 }
 
 function configure_hcloud_floatingip_failover() {
+  kubectl -n $ops_namespace delete daemonset fip-controller 2>/dev/null
+
 kubectl apply -f - << EOF
 ---
 apiVersion: v1
@@ -171,6 +186,7 @@ EOF
 }
 
 install_base
+install_imageregistry_secret
 install_ingress
 install_certmanager
 install_metallb
