@@ -1,0 +1,49 @@
+configInline:
+  address-pools:
+  - name: default
+    protocol: layer2
+    addresses:
+    - 95.216.181.0/32
+rbac:
+  create: true
+psp:
+  create: true
+prometheus:
+  scrapeAnnotations: false
+  serviceMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+serviceAccounts:
+  controller:
+    create: true
+    name: ""
+  speaker:
+    create: true
+    name: ""
+controller:
+  image:
+    repository: metallb/controller
+    tag: v0.8.1
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+speaker:
+  image:
+    repository: metallb/speaker
+    tag: v0.8.1
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  initContainers: []
