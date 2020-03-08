@@ -2,12 +2,6 @@
 
 OPS_NAMESPACE=ops
 
-function install_tiller() {
-  kubectl apply -f ./tiller-rbac.yaml
-  helm init --service-account tiller --upgrade
-  kubectl rollout status deployment tiller-deploy -n kube-system
-}
-
 function install_ingress() {
   helm upgrade \
     --install nginx-ingress \
