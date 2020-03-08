@@ -1,3 +1,7 @@
 image:
   repository: gcr.io/google_containers/metrics-server-amd64
   tag: v0.3.6
+args:
+- --kubelet-insecure-tls
+- --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+- --metric-resolution=30s

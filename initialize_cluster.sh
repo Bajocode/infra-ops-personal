@@ -55,6 +55,12 @@ function install_metallb() {
     -f metallb/metallb-overrides.yaml
 }
 
+function install_metrics_server() {
+  helm upgrade --install metrics-server stable/metrics-server \
+    --namespace $ops_namespace \
+    -f metrics-server/metrics-server-overrides.yaml
+}
+
 function configure_hcloud_floatingip_failover() {
 kubectl apply -f - << EOF
 ---
@@ -188,5 +194,6 @@ install_imageregistry_secret
 install_ingress
 install_certmanager
 install_metallb
+install_metrics_server
 configure_hcloud_floatingip_failover
 configure_cicd
