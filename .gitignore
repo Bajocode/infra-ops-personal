@@ -1,2 +1,4 @@
 *secret.yaml
 registry.yaml
+tls*
+terraform/token

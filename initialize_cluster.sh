@@ -1,12 +1,13 @@
 #!/bin/bash
 
-if [ -z "$1" ]; then echo "\nprovide hcloud api token"; fi
-if [ -z "$2" ]; then echo "\nprovide hcloud floating ip"; fi
+if [ -z "$1" ]; then printf "\nprovide hcloud api token"; fi
+if [ -z "$2" ]; then printf "\nprovide hcloud floating ip"; fi
+if [ -z "$3" ]; then printf "\nprovide gcloud secret dir"; fi
 
 hcloud_api_token=$1
 hcloud_floating_ip=$2
 ops_namespace=ops
-gcloud_secret_dir="$HOME/Dropbox/dev/gcloud/633301885736-compute@developer.gserviceaccount.com-key.json"
+gcloud_secret_dir=$3
 
 function install_base() {
   kubectl create namespace $ops_namespace \
