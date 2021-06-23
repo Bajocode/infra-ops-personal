@@ -2,3 +2,4 @@
 registry.yaml
 tls*
 terraform/token
+ansible/kubeadm-join-command

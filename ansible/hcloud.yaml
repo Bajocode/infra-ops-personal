@@ -1,0 +1,51 @@
+---
+- hosts: master-0
+  vars_prompt:
+  - name: heznertoken
+    prompt: enter hezner api token for cloud controller manager
+  tasks:
+  - name: patch cni pods to tolerate cloud provider taints
+    command: |
+      kubectl patch daemonset kube-flannel-ds \
+        --kubeconfig='/home/k8s/.kube/config' \
+        -n kube-system \
+        --type json \
+        -p '[{"op":"add","path":"/spec/template/spec/tolerations/-","value":{"key":"node.cloudprovider.kubernetes.io/uninitialized","value":"true","effect":"NoSchedule"}}]'
+
+  - name: patch coredns pods to tolerate cloud provider taints
+    command: |
+      kubectl patch deployment coredns \
+        --kubeconfig='/home/k8s/.kube/config' \
+        -n kube-system \        --type json \
+        -p '[{"op":"add","path":"/spec/template/spec/tolerations/-","value":{"key":"node.cloudprovider.kubernetes.io/uninitialized","value":"true","effect":"NoSchedule"}}]'
+
+  - name: create hezner cloud controller manager secret
+    shell: |
+      kubectl create secret generic hcloud \
+        --from-literal=token={{ heznertoken }} \
+        -n kube-system \
+        --kubeconfig='/home/k8s/.kube/config' \
+        --dry-run=client \
+        -o yaml | kubectl --kubeconfig='/home/k8s/.kube/config' apply -f -
+
+  - name: deploy hezner cloud controller manager
+    command: |
+      kubectl apply \
+        --kubeconfig='/home/k8s/.kube/config' \
+        -f https://raw.githubusercontent.com/hetznercloud/hcloud-cloud-controller-manager/v1.11.1/deploy/ccm.yaml
+
+  - name: create hezner cloud csi driver secret
+    shell: |
+      kubectl create secret generic hcloud-csi \
+        --from-literal=token={{ heznertoken }} \
+        -n kube-system \
+        --kubeconfig='/home/k8s/.kube/config' \
+        --dry-run=client \
+        -o yaml | kubectl --kubeconfig='/home/k8s/.kube/config' apply -f -
+
+  - name: deploy hezner cloud csi driver
+    command: |
+      kubectl apply \
+        --kubeconfig='/home/k8s/.kube/config' \
+        -f https://raw.githubusercontent.com/hetznercloud/csi-driver/v1.5.3/deploy/kubernetes/hcloud-csi.yml
+

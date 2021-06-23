@@ -1,0 +1,104 @@
+# installing runtime, kubeadm, kubelet and kubectl
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl
+
+- hosts: all
+  become: yes
+  handlers:
+  - name: docker status
+    service: name=docker state=started
+  tasks:
+  # Docker
+  - name: add Docker apt signing key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+  - name: add Docker stable apt repository
+    apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+  - name: install Docker and dependencies
+    apt:
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    notify:
+    - docker status
+  
+  # Kubernetes
+  - name: add Kubernetes apt signing key
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+  - name: add Kubernetes apt repository
+    apt_repository:
+      repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+      state: present
+      filename: kubernetes.list
+  - name: install Kubernetes binaries
+    apt:
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - kubelet=1.21.1-00
+      - kubeadm=1.21.1-00
+      - kubectl=1.21.1-00
+
+  - name: Restart kubelet
+    service:
+      name: kubelet
+      daemon_reload: yes
+      state: restarted
+
+- hosts: master-0
+  tasks:
+
+  - name: mark kubeconfig
+    stat:
+      path: /home/k8s/.kube/config
+    register: kubeconfig
+
+  - name: initialize Kubernetes using kubeadm
+    command: |
+      kubeadm init \
+        --apiserver-cert-extra-sans="10.240.0.10" \
+        --node-name k8s-master \
+        --pod-network-cidr=10.244.0.0/16 \
+        --ignore-preflight-errors=NumCPU \
+        --apiserver-cert-extra-sans 10.240.0.10
+    when: not kubeconfig.stat.exists
+
+  - name: kubeconfig for k8s user
+    command: "{{ item }}"
+    with_items:
+    - mkdir -p /home/k8s/.kube
+    - cp -i /etc/kubernetes/admin.conf /home/k8s/.kube/config
+    - chown k8s:k8s /home/k8s/.kube/config
+    when: not kubeconfig.stat.exists
+  
+  - name: install flannel pod network
+    command: |
+      kubectl apply \
+        --kubeconfig='/home/k8s/.kube/config' \
+        -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+  - name: generate join command for joining worker
+    command: kubeadm token create --print-join-command
+    register: join_command
+
+  - name: copy join command to local file
+    local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./kubeadm-join-command"
+
+- hosts: worker-0
+  become: true
+  tasks:
+  - name: copy join command to worker
+    copy: src=./kubeadm-join-command dest=/tmp/kubeadm-join-command.sh mode=0777
+
+  - name: join the node to cluster
+    command: sh /tmp/kubeadm-join-command.sh

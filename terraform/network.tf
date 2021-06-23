@@ -1,5 +1,5 @@
 resource "hcloud_network" "vpc" {
-  name = "kthw"
+  name = "portfolio"
   ip_range = "10.240.0.0/24"
 }
 resource "hcloud_network_subnet" "subnet" {
