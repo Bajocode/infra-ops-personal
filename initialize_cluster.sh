@@ -6,60 +6,12 @@ if [ -z "$3" ]; then printf "\nprovide gcloud secret dir"; fi
 
 hcloud_api_token=$1
 hcloud_floating_ip=$2
-ops_namespace=ops
 gcloud_secret_dir=$3
 
-function install_base() {
-  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-  helm repo add metallb https://metallb.github.io/metallb
-  helm repo add jetstack https://charts.jetstack.io
-  helm repo update
-}
-
-function install_imageregistry_secret() {
-  kubectl create secret docker-registry gcr-secret \
-  --namespace=default \
-  --docker-server=gcr.io \
-  --docker-username=_json_key \
-  --docker-password="$(cat $gcloud_secret_dir)" \
-  --docker-email=bajo09@gmail.com \
-  --dry-run -o yaml | kubectl apply -f -
-
-  kubectl patch serviceaccounts default -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
-}
-
-function install_ingress() {
-  helm upgrade \
-    --install nginx-ingress \
-    --namespace $ops_namespace \
-    -f nginx-ingress/nginx-ingress-overrides.yaml \
-    stable/nginx-ingress
-}
-
-function install_certmanager() {
-  kubectl apply \
-    -f https://raw.githubusercontent.com/jetstack/cert-manager/v0.13.1/deploy/manifests/00-crds.yaml
-  helm repo add jetstack https://charts.jetstack.io
-  helm repo update
-  helm upgrade \
-    --install cert-manager \
-    --namespace $ops_namespace \
-    -f cert-manager/cert-manager-overrides.yaml \
-    jetstack/cert-manager \
-    --wait
-  kubectl apply -f cert-manager/prod-clusterissuer.yaml
-}
-
-function install_metallb() {
-  helm upgrade --install metallb stable/metallb \
-    --namespace ops \
-    -f metallb/metallb-overrides.yaml
-}
-
 function install_metrics_server() {
-  helm upgrade --install metrics-server stable/metrics-server \
-    --namespace $ops_namespace \
-    -f metrics-server/metrics-server-overrides.yaml
+  kubectl apply \
+    -n kube-system \
+    -f metrics-server/metrics-server.yaml
 }
 
 function configure_hcloud_floatingip_failover() {
@@ -80,6 +32,7 @@ rules:
       - ""
     resources:
       - nodes
+      - pods
     verbs:
       - get
       - list
@@ -105,6 +58,26 @@ subjects:
   - kind: ServiceAccount
     name: fip-controller
     namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fip-controller-config
+  namespace: kube-system
+data:
+  config.json: |
+    {
+      "hcloud_floating_ips": ["${hcloud_floating_ip}"],
+      "node_address_type": "external"
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fip-controller-secrets
+  namespace: kube-system
+stringData:
+  HCLOUD_API_TOKEN: ${hcloud_api_token}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -148,28 +121,50 @@ spec:
         - name: config
           configMap:
             name: fip-controller-config
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: fip-controller-config
-  namespace: kube-system
-data:
-  config.json: |
-    {
-      "hcloud_floating_ips": ["${hcloud_floating_ip}"],
-      "node_address_type": "external"
-    }
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: fip-controller-secrets
-  namespace: kube-system
-stringData:
-  HCLOUD_API_TOKEN: $hcloud_api_token
----
 EOF
+}
+
+function add_helmrepos() {
+  helm repo add metallb https://metallb.github.io/metallb
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+  helm repo add jetstack https://charts.jetstack.io
+  helm repo update
+}
+
+function install_metallb() {
+  helm upgrade --install metallb metallb/metallb \
+    --namespace kube-system \
+    -f metallb/metallb-overrides.yaml
+}
+
+function install_ingress() {
+  helm upgrade \
+    --install nginx-ingress \
+    --namespace kube-system \
+    -f nginx-ingress/nginx-ingress-overrides.yaml \
+    ingress-nginx/ingress-nginx
+}
+
+function install_certmanager() {
+  helm upgrade \
+    --install cert-manager \
+    --namespace kube-system \
+    -f cert-manager/cert-manager-overrides.yaml \
+    jetstack/cert-manager \
+    --wait
+  kubectl apply -f cert-manager/prod-clusterissuer.yaml
+}
+
+function install_imageregistry_secret() {
+  kubectl create secret docker-registry gcr-secret \
+  --namespace=default \
+  --docker-server=gcr.io \
+  --docker-username=_json_key \
+  --docker-password="$(cat "$gcloud_secret_dir")" \
+  --docker-email=bajo09@gmail.com \
+  --dry-run -o yaml | kubectl apply -f -
+
+  kubectl patch serviceaccounts default -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
 }
 
 function configure_cicd() {
@@ -186,15 +181,15 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: $ops_namespace
+  namespace: kube-system
 EOF
 }
 
-install_base
-install_imageregistry_secret
-install_ingress
-install_certmanager
-install_metallb
 install_metrics_server
 configure_hcloud_floatingip_failover
+add_helmrepos
+install_metallb
+install_ingress
+install_certmanager
+install_imageregistry_secret
 # configure_cicd

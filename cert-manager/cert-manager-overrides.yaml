@@ -2,5 +2,5 @@ global:
   rbac:
     create: true
 image:
-  repository: quay.io/jetstack/cert-manager-controller
-  tag: v0.13.1
+  tag: v1.4.0
+installCRDs: true
