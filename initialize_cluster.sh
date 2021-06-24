@@ -10,9 +10,9 @@ ops_namespace=ops
 gcloud_secret_dir=$3
 
 function install_base() {
-  kubectl create namespace $ops_namespace \
-    --dry-run -o yaml | kubectl apply -f -
-  helm repo add stable https://kubernetes-charts.storage.googleapis.com
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+  helm repo add metallb https://metallb.github.io/metallb
+  helm repo add jetstack https://charts.jetstack.io
   helm repo update
 }
 
@@ -69,7 +69,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: fip-controller
-  namespace: $ops_namespace
+  namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -104,13 +104,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: fip-controller
-    namespace: $ops_namespace
+    namespace: kube-system
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: fip-controller
-  namespace: $ops_namespace
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
@@ -122,8 +122,8 @@ spec:
     spec:
       containers:
         - name: fip-controller
-          image: cbeneke/hcloud-fip-controller:v0.3.1
-          imagePullPolicy: IfNotPresent
+          image: cbeneke/hcloud-fip-controller:v0.4.0
+          imagePullPolicy: Always
           env:
             - name: NODE_NAME
               valueFrom:
@@ -153,7 +153,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fip-controller-config
-  namespace: $ops_namespace
+  namespace: kube-system
 data:
   config.json: |
     {
@@ -165,7 +165,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: fip-controller-secrets
-  namespace: $ops_namespace
+  namespace: kube-system
 stringData:
   HCLOUD_API_TOKEN: $hcloud_api_token
 ---
@@ -197,4 +197,4 @@ install_certmanager
 install_metallb
 install_metrics_server
 configure_hcloud_floatingip_failover
-configure_cicd
+# configure_cicd
