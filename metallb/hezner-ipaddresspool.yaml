@@ -1,0 +1,8 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: hezner-ipaddresspool
+  namespace: kube-system
+spec:
+  addresses:
+  - 116.202.180.115/32
