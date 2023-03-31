@@ -146,13 +146,18 @@ function install_ingress() {
 }
 
 function install_certmanager() {
-  helm upgrade \
-    --install cert-manager \
-    --namespace kube-system \
-    -f cert-manager/cert-manager-overrides.yaml \
-    jetstack/cert-manager \
-    --wait
-  kubectl apply -f cert-manager/prod-clusterissuer.yaml
+  helm install \
+  cert-manager jetstack/cert-manager \
+  --version v1.11.0 \
+  --set installCRDs=true \
+  --set prometheus.enabled=false
+  # helm upgrade \
+  #   --install cert-manager \
+  #   --namespace kube-system \
+  #   -f cert-manager/cert-manager-overrides.yaml \
+  #   jetstack/cert-manager \
+  #   --wait
+  # kubectl apply -f cert-manager/prod-clusterissuer.yaml
 }
 
 function install_imageregistry_secret() {
